@@ -241,9 +241,11 @@ async function addSite(url, blockMode, timeConfig) {
   // Create pattern from URL
   let pattern = url;
   if (!pattern.includes('*') && !pattern.includes('://')) {
-    // Convert simple domain to pattern
-    pattern = `*://*.${url}/*`;
-    if (!url.includes('.')) {
+    // Convert simple domain to pattern that matches both domain.com and www.domain.com
+    if (url.includes('.')) {
+      // For domains like "x.com", create pattern that matches both x.com and *.x.com
+      pattern = `*://${url}/*,*://*.${url}/*`;
+    } else {
       pattern = `*://*${url}*/*`;
     }
   }

@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Display random Ohtani quote
   const quote = getRandomOhtaniQuote();
   const quoteElement = document.getElementById('ohtaniQuote');
-  quoteElement.innerHTML = `${quote.text}<cite>-- 大谷翔平</cite>`;
+  quoteElement.innerHTML = `${quote.text}<cite>大谷翔平からのエール</cite>`;
   document.getElementById('quoteContext').textContent = quote.context;
   
   // Set site name
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(() => {
     const newQuote = getRandomOhtaniQuote();
     const quoteElement = document.getElementById('ohtaniQuote');
-    quoteElement.innerHTML = `${newQuote.text}<cite>-- 大谷翔平</cite>`;
+    quoteElement.innerHTML = `${newQuote.text}<cite>大谷翔平からのエール</cite>`;
     document.getElementById('quoteContext').textContent = newQuote.context;
   }, 30000);
   

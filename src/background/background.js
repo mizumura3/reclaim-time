@@ -89,11 +89,20 @@ async function isUrlBlocked(url) {
     // Check if current time is within blocked period using new logic
     if (!isBlocked(site)) continue;
     
-    // Check if URL matches the pattern
+    // Check if URL matches the pattern(s)
     const pattern = site.pattern || site.url;
-    const regex = new RegExp(pattern.replace(/\*/g, '.*'), 'i');
+    const patterns = pattern.includes(',') ? pattern.split(',') : [pattern];
     
-    if (regex.test(urlObj.hostname) || regex.test(url)) {
+    let isMatched = false;
+    for (const pat of patterns) {
+      const regex = new RegExp(pat.trim().replace(/\*/g, '.*'), 'i');
+      if (regex.test(urlObj.hostname) || regex.test(url)) {
+        isMatched = true;
+        break;
+      }
+    }
+    
+    if (isMatched) {
       return {
         blocked: true,
         site: site,
