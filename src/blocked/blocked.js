@@ -1,5 +1,63 @@
 // Blocked page script
 
+// 大谷翔平の名言リスト
+const OHTANI_QUOTES = [
+  {
+    text: "憧れるのをやめましょう",
+    context: "野球の憧れを捨て、向上心に変える"
+  },
+  {
+    text: "今日がダメでも明日頑張ればいい",
+    context: "失敗を恐れずに挑戦し続ける"
+  },
+  {
+    text: "野球を楽しむことを忘れないでください",
+    context: "楽しさを忘れずに努力を続ける"
+  },
+  {
+    text: "人生において、無駄な時間はない",
+    context: "全ての経験が成長につながる"
+  },
+  {
+    text: "努力は必ず報われる",
+    context: "継続的な努力の大切さ"
+  },
+  {
+    text: "夢は逃げない。逃げるのはいつも自分だ",
+    context: "目標に向かって進み続ける決意"
+  },
+  {
+    text: "一つひとつのプレーを大切にしたい",
+    context: "今この瞬間に集中することの重要性"
+  },
+  {
+    text: "できることからコツコツと",
+    context: "小さな積み重ねが大きな成果を生む"
+  },
+  {
+    text: "自分らしくいることが一番大事",
+    context: "他人と比較せずに自分の道を歩む"
+  },
+  {
+    text: "感謝の気持ちを忘れない",
+    context: "周りの支えへの感謝を大切にする"
+  },
+  {
+    text: "限界を決めるのは他人じゃなくて自分",
+    context: "自分の可能性を信じて挑戦する"
+  },
+  {
+    text: "今日という日は、二度と来ない貴重な一日",
+    context: "時間の大切さと今日への集中"
+  }
+];
+
+// ランダムに名言を選択
+function getRandomOhtaniQuote() {
+  const randomIndex = Math.floor(Math.random() * OHTANI_QUOTES.length);
+  return OHTANI_QUOTES[randomIndex];
+}
+
 // Parse URL parameters
 function getUrlParams() {
   const params = new URLSearchParams(window.location.search);
@@ -131,20 +189,29 @@ function formatTime(timeString) {
 document.addEventListener('DOMContentLoaded', () => {
   const params = getUrlParams();
   
+  // Display random Ohtani quote
+  const quote = getRandomOhtaniQuote();
+  document.getElementById('ohtaniQuote').textContent = `"${quote.text}"`;
+  document.getElementById('quoteContext').textContent = quote.context;
+  
+  // Randomly select Ohtani image
+  const imageVariant = Math.floor(Math.random() * 3) + 1;
+  document.getElementById('ohtaniImage').src = `../assets/ohtani/ohtani-${imageVariant}.svg`;
+  
   // Set site name
   const siteName = formatSiteName(params.site);
-  document.getElementById('siteName').textContent = siteName;
+  document.getElementById('siteName').textContent = `${siteName}のアクセスをブロック中`;
   
   // Set unlock time display based on mode
   const unblockTimeElement = document.getElementById('unblockTime');
   if (params.blockMode === 'timeRange') {
     if (params.blockStart && params.blockEnd) {
-      unblockTimeElement.textContent = `${formatTime(params.blockStart)}-${formatTime(params.blockEnd)}のブロック終了`;
+      unblockTimeElement.textContent = `${formatTime(params.blockEnd)}に解除`;
     } else {
       unblockTimeElement.textContent = '設定エラー';
     }
   } else {
-    unblockTimeElement.textContent = formatTime(params.unblockTime);
+    unblockTimeElement.textContent = `${formatTime(params.unblockTime)}に解除`;
   }
   
   // Start timer
@@ -152,6 +219,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(() => {
     updateTimer(params);
   }, 1000);
+  
+  // Change quote every 30 seconds for motivation
+  setInterval(() => {
+    const newQuote = getRandomOhtaniQuote();
+    document.getElementById('ohtaniQuote').textContent = `"${newQuote.text}"`;
+    document.getElementById('quoteContext').textContent = newQuote.context;
+  }, 30000);
   
   // Handle go back button
   document.getElementById('goBack').addEventListener('click', () => {

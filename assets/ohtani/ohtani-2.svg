@@ -1,0 +1,59 @@
+<svg width="400" height="500" viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#dc2626;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1f2937;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="face2" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#1f2937;stop-opacity:0.1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="400" height="500" fill="url(#bg2)"/>
+  
+  <!-- Baseball diamond pattern -->
+  <path d="M200 50 L350 200 L200 350 L50 200 Z" fill="none" stroke="#1e3a8a" stroke-width="2" opacity="0.3"/>
+  
+  <!-- Player silhouette -->
+  <g transform="translate(200, 250)">
+    <!-- Head -->
+    <circle cx="0" cy="-80" r="40" fill="#4a5568" opacity="0.8"/>
+    
+    <!-- Body -->
+    <rect x="-35" y="-40" width="70" height="120" rx="10" fill="#ffffff" opacity="0.9"/>
+    
+    <!-- Jersey number -->
+    <text x="0" y="0" text-anchor="middle" fill="#dc2626" font-family="Arial Black" font-size="36" font-weight="bold">17</text>
+    
+    <!-- Arms -->
+    <ellipse cx="-50" cy="-20" rx="15" ry="50" fill="#ffffff" opacity="0.9" transform="rotate(-20)"/>
+    <ellipse cx="50" cy="-20" rx="15" ry="50" fill="#ffffff" opacity="0.9" transform="rotate(20)"/>
+    
+    <!-- Baseball bat -->
+    <rect x="60" y="-60" width="6" height="80" fill="#8b4513" opacity="0.9" transform="rotate(45)"/>
+    
+    <!-- Baseball -->
+    <circle cx="80" cy="-40" r="8" fill="white" opacity="0.9"/>
+    <path d="M75 -40 Q80 -35 85 -40" stroke="red" stroke-width="1" fill="none"/>
+    <path d="M75 -40 Q80 -45 85 -40" stroke="red" stroke-width="1" fill="none"/>
+    
+    <!-- Legs -->
+    <rect x="-25" y="80" width="20" height="60" rx="10" fill="#dc2626" opacity="0.8"/>
+    <rect x="5" y="80" width="20" height="60" rx="10" fill="#dc2626" opacity="0.8"/>
+  </g>
+  
+  <!-- Baseball elements -->
+  <circle cx="50" cy="100" r="15" fill="white" opacity="0.6"/>
+  <path d="M40 100 Q50 90 60 100" stroke="red" stroke-width="2" fill="none" opacity="0.6"/>
+  <path d="M40 100 Q50 110 60 100" stroke="red" stroke-width="2" fill="none" opacity="0.6"/>
+  
+  <circle cx="350" cy="400" r="12" fill="white" opacity="0.6"/>
+  <path d="M342 400 Q350 392 358 400" stroke="red" stroke-width="1.5" fill="none" opacity="0.6"/>
+  <path d="M342 400 Q350 408 358 400" stroke="red" stroke-width="1.5" fill="none" opacity="0.6"/>
+  
+  <!-- Inspirational elements -->
+  <text x="200" y="450" text-anchor="middle" fill="white" font-family="Arial" font-size="18" font-weight="bold" opacity="0.8">SHOHEI OHTANI</text>
+  <text x="200" y="475" text-anchor="middle" fill="#1e3a8a" font-family="Arial" font-size="14" font-weight="bold">二刀流</text>
+</svg>
