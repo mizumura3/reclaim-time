@@ -72,6 +72,14 @@ async function getBlockedSites() {
 
 // Check if URL matches any blocked pattern
 async function isUrlBlocked(url) {
+  // Check if master blocking is enabled
+  const result = await chrome.storage.local.get(['blockingEnabled']);
+  const blockingEnabled = result.blockingEnabled !== false; // Default to true
+  
+  if (!blockingEnabled) {
+    return { blocked: false };
+  }
+  
   const blockedSites = await getBlockedSites();
   const urlObj = new URL(url);
   

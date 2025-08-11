@@ -158,6 +158,11 @@ function createSiteElement(site) {
           <input type="checkbox" ${site.enabled ? 'checked' : ''} data-site-id="${site.id}">
           <span class="toggle-slider"></span>
         </label>
+        <button class="edit-btn" data-site-id="${site.id}">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
         <button class="delete-btn" data-site-id="${site.id}">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -180,6 +185,11 @@ function createSiteElement(site) {
   const toggleInput = div.querySelector('input[type="checkbox"]');
   toggleInput.addEventListener('change', (e) => {
     toggleSite(site.id, e.target.checked);
+  });
+  
+  const editBtn = div.querySelector('.edit-btn');
+  editBtn.addEventListener('click', () => {
+    editSite(site.id);
   });
   
   const deleteBtn = div.querySelector('.delete-btn');
@@ -271,9 +281,128 @@ function updateTimePreview() {
   }
 }
 
+// Update time preview for edit mode
+function updateEditTimePreview() {
+  const blockStart = document.getElementById('editBlockStart').value;
+  const blockEnd = document.getElementById('editBlockEnd').value;
+  const preview = document.getElementById('editTimePreview');
+  
+  if (blockStart && blockEnd) {
+    preview.textContent = `${formatTime(blockStart)}-${formatTime(blockEnd)}はブロック、${formatTime(blockEnd)}-翌${formatTime(blockStart)}はアクセス可能`;
+  }
+}
+
+// Edit site function
+async function editSite(siteId) {
+  const result = await chrome.storage.local.get(['blockedSites']);
+  const sites = result.blockedSites || [];
+  const site = sites.find(s => s.id === siteId);
+  
+  if (!site) return;
+  
+  // Populate modal with current site data
+  document.getElementById('editSiteUrl').value = site.url;
+  
+  // Set block mode
+  const editModeRadio = document.querySelector(`input[name="editBlockMode"][value="${site.blockMode}"]`);
+  if (editModeRadio) {
+    editModeRadio.checked = true;
+  }
+  
+  // Set time configuration based on mode
+  if (site.blockMode === 'timeRange') {
+    document.getElementById('editSimpleMode').classList.add('hidden');
+    document.getElementById('editTimeRangeMode').classList.remove('hidden');
+    document.getElementById('editBlockStart').value = site.blockStart || '08:00';
+    document.getElementById('editBlockEnd').value = site.blockEnd || '19:00';
+    updateEditTimePreview();
+  } else {
+    document.getElementById('editSimpleMode').classList.remove('hidden');
+    document.getElementById('editTimeRangeMode').classList.add('hidden');
+    document.getElementById('editUnblockTime').value = site.unblockTime || '00:00';
+  }
+  
+  // Store current editing site ID
+  document.getElementById('editSiteForm').dataset.siteId = siteId;
+  
+  // Show modal
+  document.getElementById('editModal').classList.remove('hidden');
+}
+
+// Update site function
+async function updateSite(siteId, blockMode, timeConfig) {
+  const result = await chrome.storage.local.get(['blockedSites']);
+  const sites = result.blockedSites || [];
+  
+  const siteIndex = sites.findIndex(s => s.id === siteId);
+  if (siteIndex === -1) return;
+  
+  // Update site configuration
+  sites[siteIndex].blockMode = blockMode;
+  
+  // Clear old time configuration
+  delete sites[siteIndex].unblockTime;
+  delete sites[siteIndex].blockStart;
+  delete sites[siteIndex].blockEnd;
+  
+  // Set new time configuration
+  if (blockMode === 'timeRange') {
+    sites[siteIndex].blockStart = timeConfig.blockStart;
+    sites[siteIndex].blockEnd = timeConfig.blockEnd;
+  } else {
+    sites[siteIndex].unblockTime = timeConfig.unblockTime;
+  }
+  
+  await chrome.storage.local.set({ blockedSites: sites });
+  loadSites();
+}
+
+// Load master switch state
+async function loadMasterSwitch() {
+  const result = await chrome.storage.local.get(['blockingEnabled']);
+  const blockingEnabled = result.blockingEnabled !== false; // Default to true
+  
+  const masterSwitch = document.getElementById('masterSwitch');
+  const switchText = document.getElementById('switchText');
+  const switchDescription = document.getElementById('switchDescription');
+  const container = document.querySelector('.container');
+  
+  masterSwitch.checked = blockingEnabled;
+  
+  if (blockingEnabled) {
+    switchText.textContent = 'ブロック有効';
+    switchDescription.textContent = '全サイトのブロックが有効です';
+    container.classList.remove('blocking-disabled');
+  } else {
+    switchText.textContent = 'ブロック無効';
+    switchDescription.textContent = '全サイトのブロックが無効です';
+    container.classList.add('blocking-disabled');
+  }
+}
+
+// Toggle master switch
+async function toggleMasterSwitch(enabled) {
+  await chrome.storage.local.set({ blockingEnabled: enabled });
+  
+  const switchText = document.getElementById('switchText');
+  const switchDescription = document.getElementById('switchDescription');
+  const container = document.querySelector('.container');
+  
+  if (enabled) {
+    switchText.textContent = 'ブロック有効';
+    switchDescription.textContent = '全サイトのブロックが有効です';
+    container.classList.remove('blocking-disabled');
+  } else {
+    switchText.textContent = 'ブロック無効';
+    switchDescription.textContent = '全サイトのブロックが無効です';
+    container.classList.add('blocking-disabled');
+  }
+}
+
 // Initialize popup
 document.addEventListener('DOMContentLoaded', () => {
   loadSites();
+  loadMasterSwitch();
   
   // Set default time to current time + 2 hours
   const now = new Date();
@@ -359,6 +488,95 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('blockStart').value = '08:00';
     document.getElementById('blockEnd').value = '19:00';
     updateTimePreview();
+  });
+  
+  // Handle edit modal
+  const editModal = document.getElementById('editModal');
+  const editForm = document.getElementById('editSiteForm');
+  const closeModalBtn = document.getElementById('closeModal');
+  const cancelEditBtn = document.getElementById('cancelEdit');
+  
+  // Handle edit mode selection
+  const editModeRadios = document.querySelectorAll('input[name="editBlockMode"]');
+  const editSimpleModeDiv = document.getElementById('editSimpleMode');
+  const editTimeRangeModeDiv = document.getElementById('editTimeRangeMode');
+  
+  editModeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.value === 'timeRange') {
+        editSimpleModeDiv.classList.add('hidden');
+        editTimeRangeModeDiv.classList.remove('hidden');
+        updateEditTimePreview();
+      } else {
+        editSimpleModeDiv.classList.remove('hidden');
+        editTimeRangeModeDiv.classList.add('hidden');
+      }
+    });
+  });
+  
+  // Handle edit time preview updates
+  const editBlockStartInput = document.getElementById('editBlockStart');
+  const editBlockEndInput = document.getElementById('editBlockEnd');
+  
+  [editBlockStartInput, editBlockEndInput].forEach(input => {
+    input.addEventListener('change', updateEditTimePreview);
+  });
+  
+  // Close modal handlers
+  closeModalBtn.addEventListener('click', () => {
+    editModal.classList.add('hidden');
+  });
+  
+  cancelEditBtn.addEventListener('click', () => {
+    editModal.classList.add('hidden');
+  });
+  
+  // Close modal when clicking outside
+  editModal.addEventListener('click', (e) => {
+    if (e.target === editModal) {
+      editModal.classList.add('hidden');
+    }
+  });
+  
+  // Handle edit form submission
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const siteId = editForm.dataset.siteId;
+    const blockMode = document.querySelector('input[name="editBlockMode"]:checked').value;
+    
+    if (!siteId) return;
+    
+    let timeConfig;
+    if (blockMode === 'timeRange') {
+      const blockStart = document.getElementById('editBlockStart').value;
+      const blockEnd = document.getElementById('editBlockEnd').value;
+      
+      if (!blockStart || !blockEnd) {
+        alert('ブロック開始時刻と終了時刻を入力してください');
+        return;
+      }
+      
+      timeConfig = { blockStart, blockEnd };
+    } else {
+      const unblockTime = document.getElementById('editUnblockTime').value;
+      
+      if (!unblockTime) {
+        alert('解除時刻を入力してください');
+        return;
+      }
+      
+      timeConfig = { unblockTime };
+    }
+    
+    await updateSite(siteId, blockMode, timeConfig);
+    editModal.classList.add('hidden');
+  });
+  
+  // Handle master switch toggle
+  const masterSwitch = document.getElementById('masterSwitch');
+  masterSwitch.addEventListener('change', (e) => {
+    toggleMasterSwitch(e.target.checked);
   });
   
   // Update remaining times every minute

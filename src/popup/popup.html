@@ -8,8 +8,24 @@
 </head>
 <body>
   <div class="container">
-    <h1>Reclaim Time</h1>
-    <p class="subtitle">時間を取り戻す</p>
+    <div class="header">
+      <div class="title-section">
+        <h1>Reclaim Time</h1>
+        <p class="subtitle">時間を取り戻す</p>
+      </div>
+      <div class="master-switch-section">
+        <div class="master-switch">
+          <label class="master-toggle-switch">
+            <input type="checkbox" id="masterSwitch" checked>
+            <span class="master-toggle-slider"></span>
+          </label>
+          <div class="master-switch-label">
+            <span class="switch-text" id="switchText">ブロック有効</span>
+            <small class="switch-description" id="switchDescription">全サイトのブロックが有効です</small>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <!-- Add new site form -->
     <div class="add-site-section">
@@ -93,6 +109,86 @@
       <div id="emptySites" class="empty-state">
         ブロックされているサイトはありません
       </div>
+    </div>
+  </div>
+  
+  <!-- Edit Site Modal -->
+  <div id="editModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>サイト設定を編集</h3>
+        <button id="closeModal" class="modal-close">&times;</button>
+      </div>
+      <form id="editSiteForm">
+        <div class="form-group">
+          <label for="editSiteUrl">サイトURL/パターン</label>
+          <input 
+            type="text" 
+            id="editSiteUrl" 
+            required
+            readonly
+          >
+          <small>URLは変更できません</small>
+        </div>
+        
+        <div class="form-group">
+          <label>ブロックモード</label>
+          <div class="mode-selector">
+            <label class="mode-option">
+              <input type="radio" name="editBlockMode" value="simple">
+              <span class="mode-label">シンプル</span>
+              <small>指定時刻まで毎日ブロック</small>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="editBlockMode" value="timeRange">
+              <span class="mode-label">時間帯</span>
+              <small>毎日決まった時間帯でブロック</small>
+            </label>
+          </div>
+        </div>
+        
+        <div id="editSimpleMode" class="time-config">
+          <div class="form-group">
+            <label for="editUnblockTime">解除時刻</label>
+            <input 
+              type="time" 
+              id="editUnblockTime" 
+            >
+            <small>この時刻までアクセスがブロックされます</small>
+          </div>
+        </div>
+        
+        <div id="editTimeRangeMode" class="time-config hidden">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editBlockStart">ブロック開始</label>
+              <input 
+                type="time" 
+                id="editBlockStart" 
+              >
+            </div>
+            <div class="form-group">
+              <label for="editBlockEnd">ブロック終了</label>
+              <input 
+                type="time" 
+                id="editBlockEnd" 
+              >
+            </div>
+          </div>
+          <small class="time-preview">
+            🕐 <span id="editTimePreview"></span>
+          </small>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" id="cancelEdit" class="btn btn-secondary">
+            キャンセル
+          </button>
+          <button type="submit" class="btn btn-primary">
+            保存
+          </button>
+        </div>
+      </form>
     </div>
   </div>
   
