@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>アクセスがブロックされました - Reclaim Time</title>
+  <link rel="stylesheet" href="blocked.css">
+</head>
+<body>
+  <div class="container">
+    <div class="content">
+      <div class="icon-container">
+        <svg class="clock-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      
+      <h1>時間を取り戻しましょう</h1>
+      
+      <div class="message">
+        <p>このサイトへのアクセスは制限されています</p>
+        <p class="site-name" id="siteName"></p>
+      </div>
+      
+      <div class="timer-section">
+        <div class="timer-label">解除まで残り</div>
+        <div class="timer" id="timer">
+          <div class="time-unit">
+            <span class="time-value" id="hours">00</span>
+            <span class="time-label">時間</span>
+          </div>
+          <div class="time-separator">:</div>
+          <div class="time-unit">
+            <span class="time-value" id="minutes">00</span>
+            <span class="time-label">分</span>
+          </div>
+          <div class="time-separator">:</div>
+          <div class="time-unit">
+            <span class="time-value" id="seconds">00</span>
+            <span class="time-label">秒</span>
+          </div>
+        </div>
+        <div class="unlock-time">
+          解除時刻: <span id="unblockTime"></span>
+        </div>
+      </div>
+      
+      <div class="motivation">
+        <p>💪 この時間を有効活用しましょう！</p>
+        <ul>
+          <li>📚 本を読む</li>
+          <li>🏃 運動する</li>
+          <li>✍️ 仕事や勉強に集中する</li>
+          <li>🧘 瞑想やリラックス</li>
+        </ul>
+      </div>
+      
+      <div class="actions">
+        <button id="goBack" class="btn btn-secondary">
+          戻る
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="blocked.js"></script>
+</body>
+</html>

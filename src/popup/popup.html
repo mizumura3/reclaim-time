@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reclaim Time - 設定</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Reclaim Time</h1>
+    <p class="subtitle">時間を取り戻す</p>
+    
+    <!-- Add new site form -->
+    <div class="add-site-section">
+      <h2>サイトを追加</h2>
+      <form id="addSiteForm">
+        <div class="form-group">
+          <label for="siteUrl">サイトURL/パターン</label>
+          <input 
+            type="text" 
+            id="siteUrl" 
+            placeholder="例: youtube.com, *.twitter.com"
+            required
+          >
+          <small>ワイルドカード(*)を使用できます</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="unblockTime">解除時刻</label>
+          <input 
+            type="time" 
+            id="unblockTime" 
+            required
+          >
+          <small>この時刻までアクセスがブロックされます</small>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+          追加
+        </button>
+      </form>
+    </div>
+    
+    <!-- Blocked sites list -->
+    <div class="sites-section">
+      <h2>ブロック中のサイト</h2>
+      <div id="sitesList" class="sites-list">
+        <!-- Sites will be dynamically added here -->
+      </div>
+      <div id="emptySites" class="empty-state">
+        ブロックされているサイトはありません
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
