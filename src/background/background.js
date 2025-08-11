@@ -1,25 +1,67 @@
 // Background Service Worker for Reclaim Time Extension
+// Using Chrome Extension Manifest V3 APIs
+
+/* global chrome */
 
 // Initialize extension on install
+// Note: In Manifest V3, addListener is the standard API for event handling
+// The IDE warning about deprecation is incorrect - this is the official Chrome Extensions API
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Reclaim Time extension installed');
   // Initialize storage with empty blocked sites
   chrome.storage.local.set({ blockedSites: [] });
 });
 
-// Check if current time is before unblock time
-function isBlocked(unblockTime) {
+// Check if site should be blocked based on configuration
+function isBlocked(siteConfig) {
+  // Support both old format (unblockTime) and new format (blockStart/blockEnd)
+  if (siteConfig.blockMode === 'timeRange') {
+    return isBlockedInTimeRange(siteConfig.blockStart, siteConfig.blockEnd);
+  } else {
+    // Legacy format: simple unblock time
+    return isBlockedUntilTime(siteConfig.unblockTime || siteConfig.blockEnd);
+  }
+}
+
+// Time range blocking logic (8:00-19:00 blocked, 19:00-8:00 accessible)
+function isBlockedInTimeRange(blockStart, blockEnd) {
+  if (!blockStart || !blockEnd) return false;
+  
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  const [startH, startM] = blockStart.split(':').map(Number);
+  const [endH, endM] = blockEnd.split(':').map(Number);
+  
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+  
+  // Case 1: Block period doesn't cross midnight (e.g., 8:00-19:00)
+  if (startMinutes < endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  }
+  // Case 2: Block period crosses midnight (e.g., 23:00-02:00)
+  else if (startMinutes > endMinutes) {
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  }
+  // Case 3: Same time (24-hour block)
+  else {
+    return true;
+  }
+}
+
+// Legacy simple time blocking (until specific time)
+function isBlockedUntilTime(unblockTime) {
+  if (!unblockTime) return false;
+  
   const now = new Date();
   const [hours, minutes] = unblockTime.split(':').map(Number);
   const unblockDate = new Date();
   unblockDate.setHours(hours, minutes, 0, 0);
   
-  // If unblock time is earlier than current time, assume it's for tomorrow
-  if (unblockDate < now) {
-    unblockDate.setDate(unblockDate.getDate() + 1);
-  }
-  
-  return now < unblockDate;
+  // If the unblock time has already passed today, the site should not be blocked
+  // Only block if the unblock time is in the future (later today)
+  return unblockDate > now;
 }
 
 // Get blocked sites from storage
@@ -36,8 +78,8 @@ async function isUrlBlocked(url) {
   for (const site of blockedSites) {
     if (!site.enabled) continue;
     
-    // Check if current time is within blocked period
-    if (!isBlocked(site.unblockTime)) continue;
+    // Check if current time is within blocked period using new logic
+    if (!isBlocked(site)) continue;
     
     // Check if URL matches the pattern
     const pattern = site.pattern || site.url;
@@ -47,7 +89,7 @@ async function isUrlBlocked(url) {
       return {
         blocked: true,
         site: site,
-        remainingTime: getRemainingTime(site.unblockTime)
+        remainingTime: getRemainingTime(site)
       };
     }
   }
@@ -56,14 +98,54 @@ async function isUrlBlocked(url) {
 }
 
 // Calculate remaining time until unblock
-function getRemainingTime(unblockTime) {
+function getRemainingTime(siteConfig) {
   const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  // Handle time range mode
+  if (siteConfig.blockMode === 'timeRange') {
+    const blockEnd = siteConfig.blockEnd;
+    if (!blockEnd) return { hours: 0, minutes: 0, totalMinutes: 0 };
+    
+    const [endH, endM] = blockEnd.split(':').map(Number);
+    const endMinutes = endH * 60 + endM;
+    
+    let minutesUntilEnd;
+    
+    // Calculate minutes until block ends
+    if (endMinutes > currentMinutes) {
+      // Same day
+      minutesUntilEnd = endMinutes - currentMinutes;
+    } else {
+      // Next day
+      minutesUntilEnd = (24 * 60) - currentMinutes + endMinutes;
+    }
+    
+    const hoursRemaining = Math.floor(minutesUntilEnd / 60);
+    const minutesRemaining = minutesUntilEnd % 60;
+    
+    return {
+      hours: hoursRemaining,
+      minutes: minutesRemaining,
+      totalMinutes: minutesUntilEnd
+    };
+  }
+  
+  // Legacy simple mode
+  const unblockTime = siteConfig.unblockTime || siteConfig.blockEnd;
+  if (!unblockTime) return { hours: 0, minutes: 0, totalMinutes: 0 };
+  
   const [hours, minutes] = unblockTime.split(':').map(Number);
   const unblockDate = new Date();
   unblockDate.setHours(hours, minutes, 0, 0);
   
-  if (unblockDate < now) {
-    unblockDate.setDate(unblockDate.getDate() + 1);
+  // Only calculate remaining time if unblock time is in the future
+  if (unblockDate <= now) {
+    return {
+      hours: 0,
+      minutes: 0,
+      totalMinutes: 0
+    };
   }
   
   const diff = unblockDate - now;
@@ -87,7 +169,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       const blockedUrl = chrome.runtime.getURL('src/blocked/blocked.html');
       const params = new URLSearchParams({
         site: blockInfo.site.url,
-        unblockTime: blockInfo.site.unblockTime,
+        blockMode: blockInfo.site.blockMode || 'simple',
+        blockStart: blockInfo.site.blockStart || '',
+        blockEnd: blockInfo.site.blockEnd || blockInfo.site.unblockTime || '',
+        unblockTime: blockInfo.site.unblockTime || blockInfo.site.blockEnd || '',
         originalUrl: tab.url,
         hours: blockInfo.remainingTime.hours,
         minutes: blockInfo.remainingTime.minutes
@@ -109,7 +194,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
       const blockedUrl = chrome.runtime.getURL('src/blocked/blocked.html');
       const params = new URLSearchParams({
         site: blockInfo.site.url,
-        unblockTime: blockInfo.site.unblockTime,
+        blockMode: blockInfo.site.blockMode || 'simple',
+        blockStart: blockInfo.site.blockStart || '',
+        blockEnd: blockInfo.site.blockEnd || blockInfo.site.unblockTime || '',
+        unblockTime: blockInfo.site.unblockTime || blockInfo.site.blockEnd || '',
         originalUrl: details.url,
         hours: blockInfo.remainingTime.hours,
         minutes: blockInfo.remainingTime.minutes

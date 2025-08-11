@@ -27,13 +27,55 @@
         </div>
         
         <div class="form-group">
-          <label for="unblockTime">解除時刻</label>
-          <input 
-            type="time" 
-            id="unblockTime" 
-            required
-          >
-          <small>この時刻までアクセスがブロックされます</small>
+          <label>ブロックモード</label>
+          <div class="mode-selector">
+            <label class="mode-option">
+              <input type="radio" name="blockMode" value="simple" checked>
+              <span class="mode-label">シンプル</span>
+              <small>指定時刻まで毎日ブロック</small>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="blockMode" value="timeRange">
+              <span class="mode-label">時間帯</span>
+              <small>毎日決まった時間帯でブロック</small>
+            </label>
+          </div>
+        </div>
+        
+        <div id="simpleMode" class="time-config">
+          <div class="form-group">
+            <label for="unblockTime">解除時刻</label>
+            <input 
+              type="time" 
+              id="unblockTime" 
+              required
+            >
+            <small>この時刻までアクセスがブロックされます</small>
+          </div>
+        </div>
+        
+        <div id="timeRangeMode" class="time-config hidden">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="blockStart">ブロック開始</label>
+              <input 
+                type="time" 
+                id="blockStart" 
+                value="08:00"
+              >
+            </div>
+            <div class="form-group">
+              <label for="blockEnd">ブロック終了</label>
+              <input 
+                type="time" 
+                id="blockEnd" 
+                value="19:00"
+              >
+            </div>
+          </div>
+          <small class="time-preview">
+            🕐 <span id="timePreview">8:00-19:00はブロック、19:00-翌8:00はアクセス可能</span>
+          </small>
         </div>
         
         <button type="submit" class="btn btn-primary">

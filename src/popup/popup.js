@@ -11,15 +11,86 @@ function formatTime(timeString) {
   return `${hours}:${minutes}`;
 }
 
-// Calculate remaining time
-function getRemainingTime(unblockTime) {
+// Calculate remaining time based on site configuration
+function getRemainingTime(site) {
   const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  // Handle time range mode
+  if (site.blockMode === 'timeRange') {
+    const blockStart = site.blockStart;
+    const blockEnd = site.blockEnd;
+    
+    if (!blockStart || !blockEnd) return '設定エラー';
+    
+    const [startH, startM] = blockStart.split(':').map(Number);
+    const [endH, endM] = blockEnd.split(':').map(Number);
+    
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    
+    // Check if currently in block period
+    let isInBlockPeriod = false;
+    if (startMinutes < endMinutes) {
+      // Same day block (e.g., 8:00-19:00)
+      isInBlockPeriod = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    } else {
+      // Cross midnight block (e.g., 23:00-02:00)
+      isInBlockPeriod = currentMinutes >= startMinutes || currentMinutes < endMinutes;
+    }
+    
+    if (!isInBlockPeriod) {
+      // Calculate time until next block period starts
+      let minutesUntilStart;
+      if (startMinutes > currentMinutes) {
+        minutesUntilStart = startMinutes - currentMinutes;
+      } else {
+        minutesUntilStart = (24 * 60) - currentMinutes + startMinutes;
+      }
+      
+      const hoursUntilStart = Math.floor(minutesUntilStart / 60);
+      const minsUntilStart = minutesUntilStart % 60;
+      
+      if (hoursUntilStart > 0) {
+        return `${hoursUntilStart}時間${minsUntilStart}分後に開始`;
+      } else {
+        return `${minsUntilStart}分後に開始`;
+      }
+    }
+    
+    // Calculate time until block period ends
+    let minutesUntilEnd;
+    if (endMinutes > currentMinutes && startMinutes < endMinutes) {
+      // Same day
+      minutesUntilEnd = endMinutes - currentMinutes;
+    } else {
+      // Next day or cross midnight
+      minutesUntilEnd = (24 * 60) - currentMinutes + endMinutes;
+    }
+    
+    const hoursUntilEnd = Math.floor(minutesUntilEnd / 60);
+    const minsUntilEnd = minutesUntilEnd % 60;
+    
+    if (hoursUntilEnd > 0) {
+      return `${hoursUntilEnd}時間${minsUntilEnd}分`;
+    } else if (minsUntilEnd > 0) {
+      return `${minsUntilEnd}分`;
+    } else {
+      return '間もなく解除';
+    }
+  }
+  
+  // Legacy simple mode
+  const unblockTime = site.unblockTime || site.blockEnd;
+  if (!unblockTime) return '設定エラー';
+  
   const [hours, minutes] = unblockTime.split(':').map(Number);
   const unblockDate = new Date();
   unblockDate.setHours(hours, minutes, 0, 0);
   
-  if (unblockDate < now) {
-    unblockDate.setDate(unblockDate.getDate() + 1);
+  // If time has passed, show "解除済み"
+  if (unblockDate <= now) {
+    return '解除済み';
   }
   
   const diff = unblockDate - now;
@@ -28,8 +99,10 @@ function getRemainingTime(unblockTime) {
   
   if (hoursRemaining > 0) {
     return `${hoursRemaining}時間${minutesRemaining}分`;
-  } else {
+  } else if (minutesRemaining > 0) {
     return `${minutesRemaining}分`;
+  } else {
+    return '間もなく解除';
   }
 }
 
@@ -63,11 +136,23 @@ function createSiteElement(site) {
   div.className = `site-item ${!site.enabled ? 'disabled' : ''}`;
   div.dataset.siteId = site.id;
   
-  const remainingTime = getRemainingTime(site.unblockTime);
+  const remainingTime = getRemainingTime(site);
+  
+  // Generate display text based on mode
+  let timeDisplayText = '';
+  let modeDisplayText = '';
+  
+  if (site.blockMode === 'timeRange') {
+    timeDisplayText = `${formatTime(site.blockStart)}-${formatTime(site.blockEnd)}`;
+    modeDisplayText = '<span class="block-mode time-range">時間帯</span>';
+  } else {
+    timeDisplayText = formatTime(site.unblockTime || site.blockEnd || '');
+    modeDisplayText = '<span class="block-mode">シンプル</span>';
+  }
   
   div.innerHTML = `
     <div class="site-header">
-      <span class="site-url">${site.url}</span>
+      <span class="site-url">${site.url}${modeDisplayText}</span>
       <div class="site-controls">
         <label class="toggle-switch">
           <input type="checkbox" ${site.enabled ? 'checked' : ''} data-site-id="${site.id}">
@@ -82,10 +167,11 @@ function createSiteElement(site) {
     </div>
     <div class="site-info">
       <div class="info-item">
-        <span>🕐 解除時刻: ${formatTime(site.unblockTime)}</span>
+        <span>🕐 ${site.blockMode === 'timeRange' ? 'ブロック時間帯' : '解除時刻'}: 
+        <span class="time-range-display">${timeDisplayText}</span></span>
       </div>
       <div class="info-item">
-        <span>⏱️ 残り: <span class="remaining-time">${remainingTime}</span></span>
+        <span>⏱️ 状態: <span class="remaining-time">${remainingTime}</span></span>
       </div>
     </div>
   `;
@@ -137,8 +223,8 @@ async function deleteSite(siteId) {
   }
 }
 
-// Add new site
-async function addSite(url, unblockTime) {
+// Add new site with support for different modes
+async function addSite(url, blockMode, timeConfig) {
   const result = await chrome.storage.local.get(['blockedSites']);
   const sites = result.blockedSites || [];
   
@@ -156,14 +242,33 @@ async function addSite(url, unblockTime) {
     id: generateId(),
     url: url,
     pattern: pattern,
-    unblockTime: unblockTime,
+    blockMode: blockMode,
     enabled: true
   };
+  
+  // Set time configuration based on mode
+  if (blockMode === 'timeRange') {
+    newSite.blockStart = timeConfig.blockStart;
+    newSite.blockEnd = timeConfig.blockEnd;
+  } else {
+    newSite.unblockTime = timeConfig.unblockTime;
+  }
   
   sites.push(newSite);
   await chrome.storage.local.set({ blockedSites: sites });
   
   loadSites();
+}
+
+// Update time preview for time range mode
+function updateTimePreview() {
+  const blockStart = document.getElementById('blockStart').value;
+  const blockEnd = document.getElementById('blockEnd').value;
+  const preview = document.getElementById('timePreview');
+  
+  if (blockStart && blockEnd) {
+    preview.textContent = `${formatTime(blockStart)}-${formatTime(blockEnd)}はブロック、${formatTime(blockEnd)}-翌${formatTime(blockStart)}はアクセス可能`;
+  }
 }
 
 // Initialize popup
@@ -176,24 +281,84 @@ document.addEventListener('DOMContentLoaded', () => {
   const timeString = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   document.getElementById('unblockTime').value = timeString;
   
+  // Handle mode selection
+  const modeRadios = document.querySelectorAll('input[name="blockMode"]');
+  const simpleModeDiv = document.getElementById('simpleMode');
+  const timeRangeModeDiv = document.getElementById('timeRangeMode');
+  
+  modeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.value === 'timeRange') {
+        simpleModeDiv.classList.add('hidden');
+        timeRangeModeDiv.classList.remove('hidden');
+      } else {
+        simpleModeDiv.classList.remove('hidden');
+        timeRangeModeDiv.classList.add('hidden');
+      }
+    });
+  });
+  
+  // Handle time preview updates
+  const blockStartInput = document.getElementById('blockStart');
+  const blockEndInput = document.getElementById('blockEnd');
+  
+  [blockStartInput, blockEndInput].forEach(input => {
+    input.addEventListener('change', updateTimePreview);
+  });
+  
+  // Update preview initially
+  updateTimePreview();
+  
   // Handle form submission
   const form = document.getElementById('addSiteForm');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const url = document.getElementById('siteUrl').value.trim();
-    const unblockTime = document.getElementById('unblockTime').value;
+    const blockMode = document.querySelector('input[name="blockMode"]:checked').value;
     
-    if (url && unblockTime) {
-      await addSite(url, unblockTime);
+    if (!url) return;
+    
+    let timeConfig;
+    if (blockMode === 'timeRange') {
+      const blockStart = document.getElementById('blockStart').value;
+      const blockEnd = document.getElementById('blockEnd').value;
       
-      // Reset form
-      document.getElementById('siteUrl').value = '';
-      const now = new Date();
-      now.setHours(now.getHours() + 2);
-      const timeString = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      document.getElementById('unblockTime').value = timeString;
+      if (!blockStart || !blockEnd) {
+        alert('ブロック開始時刻と終了時刻を入力してください');
+        return;
+      }
+      
+      timeConfig = { blockStart, blockEnd };
+    } else {
+      const unblockTime = document.getElementById('unblockTime').value;
+      
+      if (!unblockTime) {
+        alert('解除時刻を入力してください');
+        return;
+      }
+      
+      timeConfig = { unblockTime };
     }
+    
+    await addSite(url, blockMode, timeConfig);
+    
+    // Reset form
+    document.getElementById('siteUrl').value = '';
+    
+    // Reset to simple mode
+    document.querySelector('input[name="blockMode"][value="simple"]').checked = true;
+    simpleModeDiv.classList.remove('hidden');
+    timeRangeModeDiv.classList.add('hidden');
+    
+    // Reset time values
+    const newNow = new Date();
+    newNow.setHours(newNow.getHours() + 2);
+    const newTimeString = `${String(newNow.getHours()).padStart(2, '0')}:${String(newNow.getMinutes()).padStart(2, '0')}`;
+    document.getElementById('unblockTime').value = newTimeString;
+    document.getElementById('blockStart').value = '08:00';
+    document.getElementById('blockEnd').value = '19:00';
+    updateTimePreview();
   });
   
   // Update remaining times every minute

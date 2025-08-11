@@ -5,6 +5,9 @@ function getUrlParams() {
   const params = new URLSearchParams(window.location.search);
   return {
     site: params.get('site') || 'Unknown',
+    blockMode: params.get('blockMode') || 'simple',
+    blockStart: params.get('blockStart') || '',
+    blockEnd: params.get('blockEnd') || '',
     unblockTime: params.get('unblockTime') || '00:00',
     originalUrl: params.get('originalUrl') || '',
     hours: parseInt(params.get('hours')) || 0,
@@ -12,36 +15,93 @@ function getUrlParams() {
   };
 }
 
-// Update countdown timer
-function updateTimer(unblockTime) {
+// Update countdown timer based on block mode
+function updateTimer(params) {
   const now = new Date();
-  const [hours, minutes] = unblockTime.split(':').map(Number);
-  const unblockDate = new Date();
-  unblockDate.setHours(hours, minutes, 0, 0);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
   
-  // If unblock time is earlier than current time, assume it's for tomorrow
-  if (unblockDate < now) {
-    unblockDate.setDate(unblockDate.getDate() + 1);
+  let shouldRedirect = false;
+  let endTime = '';
+  
+  if (params.blockMode === 'timeRange') {
+    const blockStart = params.blockStart;
+    const blockEnd = params.blockEnd;
+    
+    if (!blockStart || !blockEnd) {
+      // Invalid configuration, redirect
+      shouldRedirect = true;
+    } else {
+      const [startH, startM] = blockStart.split(':').map(Number);
+      const [endH, endM] = blockEnd.split(':').map(Number);
+      
+      const startMinutes = startH * 60 + startM;
+      const endMinutes = endH * 60 + endM;
+      
+      // Check if currently in block period
+      let isInBlockPeriod = false;
+      if (startMinutes < endMinutes) {
+        // Same day block (e.g., 8:00-19:00)
+        isInBlockPeriod = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      } else {
+        // Cross midnight block (e.g., 23:00-02:00)
+        isInBlockPeriod = currentMinutes >= startMinutes || currentMinutes < endMinutes;
+      }
+      
+      if (!isInBlockPeriod) {
+        shouldRedirect = true;
+      } else {
+        endTime = blockEnd;
+      }
+    }
+  } else {
+    // Simple mode
+    const unblockTime = params.unblockTime;
+    const [hours, minutes] = unblockTime.split(':').map(Number);
+    const unblockDate = new Date();
+    unblockDate.setHours(hours, minutes, 0, 0);
+    
+    if (unblockDate <= now) {
+      shouldRedirect = true;
+    } else {
+      endTime = unblockTime;
+    }
   }
   
-  const diff = unblockDate - now;
-  
-  if (diff <= 0) {
+  if (shouldRedirect) {
     // Time's up! Redirect to original URL
-    const params = getUrlParams();
     if (params.originalUrl) {
-      window.location.href = params.originalUrl;
+      setTimeout(() => {
+        window.location.href = params.originalUrl;
+      }, 100); // Small delay to ensure smooth redirect
     }
+    // Show 00:00:00 while redirecting
+    document.getElementById('hours').textContent = '00';
+    document.getElementById('minutes').textContent = '00';
+    document.getElementById('seconds').textContent = '00';
     return;
   }
   
-  const hoursRemaining = Math.floor(diff / (1000 * 60 * 60));
-  const minutesRemaining = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const secondsRemaining = Math.floor((diff % (1000 * 60)) / 1000);
+  // Calculate remaining time until end
+  const [endH, endM] = endTime.split(':').map(Number);
+  const endMinutes = endH * 60 + endM;
   
-  document.getElementById('hours').textContent = String(hoursRemaining).padStart(2, '0');
-  document.getElementById('minutes').textContent = String(minutesRemaining).padStart(2, '0');
-  document.getElementById('seconds').textContent = String(secondsRemaining).padStart(2, '0');
+  let minutesUntilEnd;
+  if (params.blockMode === 'timeRange' && endMinutes < currentMinutes) {
+    // End time is tomorrow
+    minutesUntilEnd = (24 * 60) - currentMinutes + endMinutes;
+  } else {
+    // End time is today
+    minutesUntilEnd = endMinutes - currentMinutes;
+  }
+  
+  const totalSeconds = minutesUntilEnd * 60 - now.getSeconds();
+  const hoursRemaining = Math.floor(totalSeconds / 3600);
+  const minutesRemainingDisplay = Math.floor((totalSeconds % 3600) / 60);
+  const secondsRemaining = totalSeconds % 60;
+  
+  document.getElementById('hours').textContent = String(Math.max(0, hoursRemaining)).padStart(2, '0');
+  document.getElementById('minutes').textContent = String(Math.max(0, minutesRemainingDisplay)).padStart(2, '0');
+  document.getElementById('seconds').textContent = String(Math.max(0, secondsRemaining)).padStart(2, '0');
 }
 
 // Format site name for display
@@ -61,6 +121,12 @@ function formatSiteName(site) {
   return formatted;
 }
 
+// Format time for display
+function formatTime(timeString) {
+  const [hours, minutes] = timeString.split(':');
+  return `${hours}:${minutes}`;
+}
+
 // Initialize page
 document.addEventListener('DOMContentLoaded', () => {
   const params = getUrlParams();
@@ -69,13 +135,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const siteName = formatSiteName(params.site);
   document.getElementById('siteName').textContent = siteName;
   
-  // Set unlock time
-  document.getElementById('unblockTime').textContent = params.unblockTime;
+  // Set unlock time display based on mode
+  const unblockTimeElement = document.getElementById('unblockTime');
+  if (params.blockMode === 'timeRange') {
+    if (params.blockStart && params.blockEnd) {
+      unblockTimeElement.textContent = `${formatTime(params.blockStart)}-${formatTime(params.blockEnd)}のブロック終了`;
+    } else {
+      unblockTimeElement.textContent = '設定エラー';
+    }
+  } else {
+    unblockTimeElement.textContent = formatTime(params.unblockTime);
+  }
   
   // Start timer
-  updateTimer(params.unblockTime);
+  updateTimer(params);
   setInterval(() => {
-    updateTimer(params.unblockTime);
+    updateTimer(params);
   }, 1000);
   
   // Handle go back button
