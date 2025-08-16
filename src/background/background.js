@@ -3,17 +3,38 @@
 
 /* global chrome */
 
+// Import holiday utilities
+importScripts('../utils/holidays.js');
+
 // Initialize extension on install
 // Note: In Manifest V3, addListener is the standard API for event handling
 // The IDE warning about deprecation is incorrect - this is the official Chrome Extensions API
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Reclaim Time extension installed');
-  // Initialize storage with empty blocked sites
-  chrome.storage.local.set({ blockedSites: [] });
+chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log('Reclaim Time extension event:', details.reason);
+  
+  // Only initialize storage on fresh install, not on updates
+  if (details.reason === 'install') {
+    console.log('Fresh install - initializing storage');
+    chrome.storage.local.set({ blockedSites: [] });
+  } else if (details.reason === 'update') {
+    console.log('Extension updated - preserving existing settings');
+    // Optionally migrate data structure if needed in future updates
+  }
 });
 
 // Check if site should be blocked based on configuration
 function isBlocked(siteConfig) {
+  const now = new Date();
+  
+  // Check if weekends/holidays should be excluded
+  if (siteConfig.excludeWeekends && HolidayUtils.isWeekend(now)) {
+    return false; // Don't block on weekends
+  }
+  
+  if (siteConfig.excludeHolidays && HolidayUtils.isJapaneseHoliday(now)) {
+    return false; // Don't block on holidays
+  }
+  
   // Support both old format (unblockTime) and new format (blockStart/blockEnd)
   if (siteConfig.blockMode === 'timeRange') {
     return isBlockedInTimeRange(siteConfig.blockStart, siteConfig.blockEnd);

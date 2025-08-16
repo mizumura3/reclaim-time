@@ -234,7 +234,7 @@ async function deleteSite(siteId) {
 }
 
 // Add new site with support for different modes
-async function addSite(url, blockMode, timeConfig) {
+async function addSite(url, blockMode, timeConfig, excludeWeekends = true, excludeHolidays = true) {
   const result = await chrome.storage.local.get(['blockedSites']);
   const sites = result.blockedSites || [];
   
@@ -255,6 +255,8 @@ async function addSite(url, blockMode, timeConfig) {
     url: url,
     pattern: pattern,
     blockMode: blockMode,
+    excludeWeekends: excludeWeekends,
+    excludeHolidays: excludeHolidays,
     enabled: true
   };
   
@@ -311,6 +313,10 @@ async function editSite(siteId) {
     editModeRadio.checked = true;
   }
   
+  // Set exclude settings
+  document.getElementById('editExcludeWeekends').checked = site.excludeWeekends !== false;
+  document.getElementById('editExcludeHolidays').checked = site.excludeHolidays !== false;
+  
   // Set time configuration based on mode
   if (site.blockMode === 'timeRange') {
     document.getElementById('editSimpleMode').classList.add('hidden');
@@ -332,7 +338,7 @@ async function editSite(siteId) {
 }
 
 // Update site function
-async function updateSite(siteId, blockMode, timeConfig) {
+async function updateSite(siteId, blockMode, timeConfig, excludeWeekends, excludeHolidays) {
   const result = await chrome.storage.local.get(['blockedSites']);
   const sites = result.blockedSites || [];
   
@@ -341,6 +347,8 @@ async function updateSite(siteId, blockMode, timeConfig) {
   
   // Update site configuration
   sites[siteIndex].blockMode = blockMode;
+  sites[siteIndex].excludeWeekends = excludeWeekends;
+  sites[siteIndex].excludeHolidays = excludeHolidays;
   
   // Clear old time configuration
   delete sites[siteIndex].unblockTime;
@@ -472,7 +480,11 @@ document.addEventListener('DOMContentLoaded', () => {
       timeConfig = { unblockTime };
     }
     
-    await addSite(url, blockMode, timeConfig);
+    // Get exclude settings
+    const excludeWeekends = document.getElementById('excludeWeekends').checked;
+    const excludeHolidays = document.getElementById('excludeHolidays').checked;
+    
+    await addSite(url, blockMode, timeConfig, excludeWeekends, excludeHolidays);
     
     // Reset form
     document.getElementById('siteUrl').value = '';
@@ -571,7 +583,11 @@ document.addEventListener('DOMContentLoaded', () => {
       timeConfig = { unblockTime };
     }
     
-    await updateSite(siteId, blockMode, timeConfig);
+    // Get exclude settings from edit form
+    const excludeWeekends = document.getElementById('editExcludeWeekends').checked;
+    const excludeHolidays = document.getElementById('editExcludeHolidays').checked;
+    
+    await updateSite(siteId, blockMode, timeConfig, excludeWeekends, excludeHolidays);
     editModal.classList.add('hidden');
   });
   
@@ -579,6 +595,66 @@ document.addEventListener('DOMContentLoaded', () => {
   const masterSwitch = document.getElementById('masterSwitch');
   masterSwitch.addEventListener('change', (e) => {
     toggleMasterSwitch(e.target.checked);
+  });
+  
+  // Handle export settings
+  const exportBtn = document.getElementById('exportSettings');
+  exportBtn.addEventListener('click', async () => {
+    const result = await chrome.storage.local.get(['blockedSites', 'blockingEnabled']);
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      blockedSites: result.blockedSites || [],
+      blockingEnabled: result.blockingEnabled !== false
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reclaim-time-settings-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  
+  // Handle import settings
+  const importBtn = document.getElementById('importSettings');
+  const importFile = document.getElementById('importFile');
+  
+  importBtn.addEventListener('click', () => {
+    importFile.click();
+  });
+  
+  importFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      const text = await file.text();
+      const importData = JSON.parse(text);
+      
+      if (!importData.blockedSites || !Array.isArray(importData.blockedSites)) {
+        alert('無効な設定ファイルです');
+        return;
+      }
+      
+      if (confirm('現在の設定を上書きしてインポートしますか？')) {
+        await chrome.storage.local.set({
+          blockedSites: importData.blockedSites,
+          blockingEnabled: importData.blockingEnabled !== false
+        });
+        
+        loadSites();
+        loadMasterSwitch();
+        alert('設定をインポートしました');
+      }
+    } catch (error) {
+      alert('設定ファイルの読み込みに失敗しました');
+      console.error('Import error:', error);
+    }
+    
+    // Reset file input
+    e.target.value = '';
   });
   
   // Update remaining times every minute
