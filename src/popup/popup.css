@@ -563,39 +563,6 @@ input:checked + .toggle-slider:before {
   user-select: none;
 }
 
-/* Settings section */
-.settings-section {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.settings-section h2 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 15px;
-}
-
-.settings-buttons {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.settings-buttons .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
-}
-
-.settings-buttons .btn-secondary:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
-}
-
 /* Modal styles */
 .modal {
   position: fixed;

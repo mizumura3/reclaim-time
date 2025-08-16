@@ -597,66 +597,6 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleMasterSwitch(e.target.checked);
   });
   
-  // Handle export settings
-  const exportBtn = document.getElementById('exportSettings');
-  exportBtn.addEventListener('click', async () => {
-    const result = await chrome.storage.local.get(['blockedSites', 'blockingEnabled']);
-    const exportData = {
-      version: '1.0',
-      exportDate: new Date().toISOString(),
-      blockedSites: result.blockedSites || [],
-      blockingEnabled: result.blockingEnabled !== false
-    };
-    
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reclaim-time-settings-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-  
-  // Handle import settings
-  const importBtn = document.getElementById('importSettings');
-  const importFile = document.getElementById('importFile');
-  
-  importBtn.addEventListener('click', () => {
-    importFile.click();
-  });
-  
-  importFile.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    try {
-      const text = await file.text();
-      const importData = JSON.parse(text);
-      
-      if (!importData.blockedSites || !Array.isArray(importData.blockedSites)) {
-        alert('無効な設定ファイルです');
-        return;
-      }
-      
-      if (confirm('現在の設定を上書きしてインポートしますか？')) {
-        await chrome.storage.local.set({
-          blockedSites: importData.blockedSites,
-          blockingEnabled: importData.blockingEnabled !== false
-        });
-        
-        loadSites();
-        loadMasterSwitch();
-        alert('設定をインポートしました');
-      }
-    } catch (error) {
-      alert('設定ファイルの読み込みに失敗しました');
-      console.error('Import error:', error);
-    }
-    
-    // Reset file input
-    e.target.value = '';
-  });
-  
   // Update remaining times every minute
   setInterval(() => {
     loadSites();
